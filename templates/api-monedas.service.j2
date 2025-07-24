@@ -1,0 +1,16 @@
+[Unit]
+Description=API de Monedas Spring Boot
+After=network.target postgresql@16-main.service
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/
+ExecStart=/usr/bin/java -jar /home/ubuntu/app.jar
+SuccessExitStatus=143
+Restart=always           
+RestartSec=10         
+StandardOutput=syslog    
+StandardError=syslog          
+
+[Install]
+WantedBy=multi-user.target

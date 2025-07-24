@@ -1,0 +1,78 @@
+---
+- name: Crear y configurar instancia EC2 para API monedas
+  host: localhost
+  connection: localhost
+  gather_facts: false
+
+  vars:
+    instance_type: t2.micro
+    ami_id: ami-0d1b5a8c13042c939
+    key_name: api-monedas-key  #Archivo .pen par de llaves AWS
+    region: us-east-2
+    vpc_id: vpc-011ca63eaafa21a58
+    subnet_id: subnet-0c49a9fdaee1f9fe6
+    api_port: 8080
+    db_port: 5432
+    db_name: monedas
+    db_user: postgres
+    db_password: "admin"
+    pg_admin_ip: "0.0.0.0/0"  #Todas la IP permitidas
+
+  tasks:
+    #Task 1
+    - name: Crear o verificar Grupo de seguridad para la API y DB
+      amazon.aws.ec2_security_group: 
+        name: api-monedas-tt-sg_2  # Un nuevo grupo
+        description: Security Group para API y BD
+        vpc_id: "{{vpc_id}}"  #variable
+
+        rules: # Las mismas configuradas en la consola AWS Security Groups
+          - proto: tcp
+            from_port: 22
+            to_port: 22
+            cidr_ip: "0.0.0.0/0"
+            description: Acceso SSH
+
+          - proto: tcp
+            from_port: "{{api_port}}"
+            to_port: "{{api_port}}"
+            cidr_ip: "0.0.0.0/0"
+            description: Acceso API
+
+          - proto: tcp
+            from_port: "{{db_port}}"
+            to_port: "{{db_port}}"
+            cidr_ip: "{{pg_admin_ip}}"
+            description: Acceso a PostgreSQL
+
+        tags:
+          name: api-monedas-tt-sg_2  #Nombre del grupo seguridad (igual que arriba)
+      register: sg_output #nombre personalizable de la salida de la tarea 1
+
+    #Task 2
+    - name: Lanzar la Instancia EC2
+      amazon.aws.ec2:
+        key_name: "{{key_name}}"
+        group_id: "{{sg_output.group_id}}" #Resultado de la anterior Tarea
+        instance_type: "{{instance_type}}"
+        image: "{{ami_id}}"
+        region: "{{region}}"
+        vpc_subnet_id: "{{subnet_id}}"
+        assign_public_ip: true
+        exact_count: 1 #Numero de Instancias a permitir
+        count_tag:
+          name: api-monedas-server
+        instance_tags:
+          name: api-monedas-server
+        wait: true  #para la siguiente etapa espere a que termine
+      register: ec2_instance  #nombre personalizable de la salida de la tarea 2
+    
+    #Task 3
+    - name: Esperar a que la instancia este disponible
+      ansible.builtin.wait_for_connection: 
+        delay: 60
+        timeout: 300
+      delegate_to: "{{ec2_instance.instances[0].public_ip}}"
+      vars:
+        ansible_ssh_user: ubuntu
+        ansible_ssh_private_key_file: C:\Users\Est01  #revisar como
