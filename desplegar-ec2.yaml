@@ -75,4 +75,4 @@
       delegate_to: "{{ec2_instance.instances[0].public_ip}}"
       vars:
         ansible_ssh_user: ubuntu
-        ansible_ssh_private_key_file: C:\Users\Est01  #revisar como
+        ansible_ssh_private_key_file: /files/api-monedas-key.pem  #revisar como ponerlo con secretos
